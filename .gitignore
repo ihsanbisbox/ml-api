@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+uploads/*
+!uploads/.gitkeep
+.env
+.coverage
+*.log
+.DS_Store
+model.h5
