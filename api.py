@@ -30,16 +30,44 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Load model - UPDATED VERSION
+def load_model_with_fallback():
+    """Load model with multiple path fallbacks"""
+    possible_paths = [
+        '/app/model.h5',        # Railway container path
+        'model.h5',             # Current directory
+        './model.h5',           # Explicit current directory
+        os.path.join(os.getcwd(), 'model.h5')  # Absolute current dir
+    ]
+    
+    print("🔍 Searching for model in these paths:")
+    for path in possible_paths:
+        print(f"   - {path}")
+        if os.path.exists(path):
+            file_size = os.path.getsize(path) / (1024*1024)  # MB
+            print(f"✅ Found model at: {path} ({file_size:.1f} MB)")
+            return path
+    
+    print("❌ Model not found in any expected location")
+    return None
+
 # Load model
 try:
-    model = tf.keras.models.load_model('model.h5')
-    print("✅ Model loaded successfully!")
+    model_path = load_model_with_fallback()
     
-    # Print model details for debugging
-    print(f"📊 Model input shape: {model.input_shape}")
-    print(f"📊 Model output shape: {model.output_shape}")
-    print(f"📊 Number of classes: {model.output_shape[-1]}")
-    
+    if model_path is None:
+        print("❌ Model file not found!")
+        model = None
+    else:
+        print(f"📂 Loading model from: {model_path}")
+        model = tf.keras.models.load_model(model_path)
+        print("✅ Model loaded successfully!")
+        
+        # Print model details for debugging
+        print(f"📊 Model input shape: {model.input_shape}")
+        print(f"📊 Model output shape: {model.output_shape}")
+        print(f"📊 Number of classes: {model.output_shape[-1]}")
+        
 except Exception as e:
     print(f"❌ Error loading model: {e}")
     model = None
