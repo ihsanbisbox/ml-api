@@ -30,30 +30,149 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Load model - UPDATED VERSION
-def load_model_with_fallback():
-    """Load model with multiple path fallbacks"""
-    possible_paths = [
-        '/app/model.h5',        # Railway container path
-        'model.h5',             # Current directory
-        './model.h5',           # Explicit current directory
-        os.path.join(os.getcwd(), 'model.h5')  # Absolute current dir
+
+@app.route('/debug', methods=['GET'])
+def debug_info():
+    """Debug endpoint untuk cek file system"""
+    import os
+    import glob
+    
+    debug_data = {
+        'current_directory': os.getcwd(),
+        'environment_variables': {
+            'PORT': os.environ.get('PORT'),
+            'PYTHONPATH': os.environ.get('PYTHONPATH'),
+            'HOME': os.environ.get('HOME')
+        },
+        'directory_contents': {
+            'current_dir': [],
+            'root_dir': [],
+            'app_dir': []
+        },
+        'model_search': {}
+    }
+    
+    # List current directory
+    try:
+        debug_data['directory_contents']['current_dir'] = os.listdir('.')
+    except Exception as e:
+        debug_data['directory_contents']['current_dir'] = f"Error: {e}"
+    
+    # List root directory
+    try:
+        debug_data['directory_contents']['root_dir'] = os.listdir('/')
+    except Exception as e:
+        debug_data['directory_contents']['root_dir'] = f"Error: {e}"
+    
+    # List /app directory
+    try:
+        if os.path.exists('/app'):
+            debug_data['directory_contents']['app_dir'] = os.listdir('/app')
+        else:
+            debug_data['directory_contents']['app_dir'] = "/app directory does not exist"
+    except Exception as e:
+        debug_data['directory_contents']['app_dir'] = f"Error: {e}"
+    
+    # Search for model files
+    search_patterns = ['*.h5', '**/*.h5', '/app/*.h5', '/app/**/*.h5']
+    for pattern in search_patterns:
+        try:
+            matches = glob.glob(pattern, recursive=True)
+            debug_data['model_search'][pattern] = matches
+        except Exception as e:
+            debug_data['model_search'][pattern] = f"Error: {e}"
+    
+    # Check specific paths
+    specific_paths = [
+        'model.h5',
+        './model.h5', 
+        '/app/model.h5',
+        os.path.join(os.getcwd(), 'model.h5')
     ]
     
-    print("🔍 Searching for model in these paths:")
-    for path in possible_paths:
-        print(f"   - {path}")
-        if os.path.exists(path):
-            file_size = os.path.getsize(path) / (1024*1024)  # MB
-            print(f"✅ Found model at: {path} ({file_size:.1f} MB)")
-            return path
+    debug_data['path_checks'] = {}
+    for path in specific_paths:
+        debug_data['path_checks'][path] = {
+            'exists': os.path.exists(path),
+            'is_file': os.path.isfile(path) if os.path.exists(path) else False,
+            'size_mb': round(os.path.getsize(path) / (1024*1024), 2) if os.path.exists(path) else 0
+        }
     
-    print("❌ Model not found in any expected location")
+    return jsonify({
+        'success': True,
+        'debug_info': debug_data
+    })
+
+# Update juga bagian load model dengan logging yang lebih detail
+def load_model_with_detailed_logging():
+    """Load model with detailed logging"""
+    import glob
+    
+    print("=" * 50)
+    print("🔍 DETAILED MODEL LOADING DEBUG")
+    print("=" * 50)
+    
+    # Show current working directory
+    current_dir = os.getcwd()
+    print(f"📁 Current working directory: {current_dir}")
+    
+    # List current directory contents
+    try:
+        contents = os.listdir('.')
+        print(f"📁 Current directory contents: {contents}")
+        
+        # Look for .h5 files specifically
+        h5_files = [f for f in contents if f.endswith('.h5')]
+        print(f"🔍 .h5 files in current dir: {h5_files}")
+    except Exception as e:
+        print(f"❌ Error listing current directory: {e}")
+    
+    # Check /app directory
+    if os.path.exists('/app'):
+        try:
+            app_contents = os.listdir('/app')
+            print(f"📁 /app directory contents: {app_contents}")
+            
+            app_h5_files = [f for f in app_contents if f.endswith('.h5')]
+            print(f"🔍 .h5 files in /app: {app_h5_files}")
+        except Exception as e:
+            print(f"❌ Error listing /app directory: {e}")
+    else:
+        print("📁 /app directory does not exist")
+    
+    # Search for model files recursively
+    print("🔍 Searching for .h5 files recursively...")
+    try:
+        all_h5_files = glob.glob('**/*.h5', recursive=True)
+        print(f"🔍 All .h5 files found: {all_h5_files}")
+    except Exception as e:
+        print(f"❌ Error in recursive search: {e}")
+    
+    # Try each possible path
+    possible_paths = [
+        'model.h5',
+        './model.h5',
+        '/app/model.h5',
+        os.path.join(current_dir, 'model.h5'),
+        os.path.join('/app', 'model.h5')
+    ]
+    
+    print("🔍 Checking specific paths:")
+    for path in possible_paths:
+        exists = os.path.exists(path)
+        if exists:
+            size = os.path.getsize(path) / (1024*1024)
+            print(f"✅ {path} - EXISTS ({size:.1f} MB)")
+            return path
+        else:
+            print(f"❌ {path} - NOT FOUND")
+    
+    print("❌ No model file found in any expected location!")
     return None
 
-# Load model
+# Ganti bagian load model yang lama dengan ini:
 try:
-    model_path = load_model_with_fallback()
+    model_path = load_model_with_detailed_logging()
     
     if model_path is None:
         print("❌ Model file not found!")
@@ -70,6 +189,8 @@ try:
         
 except Exception as e:
     print(f"❌ Error loading model: {e}")
+    import traceback
+    traceback.print_exc()
     model = None
 
 # Class names - pastikan urutan sama dengan training
