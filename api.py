@@ -14,7 +14,7 @@ app = Flask(__name__)
 # CORS Configuration - Lebih spesifik
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost", "http://127.0.0.1", "http://localhost:8000", "http://127.0.0.1:8000"],
+        "origins": ["https://laravel-tomato-production-729a.up.railway.app"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
